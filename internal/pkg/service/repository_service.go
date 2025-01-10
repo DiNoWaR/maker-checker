@@ -28,6 +28,22 @@ func (rep *RepositoryService) SaveMessage(msg *Message) error {
 	return saveErr
 }
 
+func (rep *RepositoryService) GetMessageById(messageId string) (*Message, error) {
+	var msg Message
+	dbErr := rep.db.QueryRow(`
+		SELECT id, sender_id, recipient_id, content, status, ts 
+		FROM messages 
+		WHERE id = $1`, messageId).Scan(
+		&msg.Id, &msg.SenderId, &msg.RecipientId, &msg.Content, &msg.Status, &msg.Ts,
+	)
+
+	if dbErr != nil {
+		return nil, dbErr
+	}
+
+	return &msg, nil
+}
+
 func (rep *RepositoryService) UpdateMessage(messageId string, status MessageStatus) error {
 	_, dbErr := rep.db.Exec(
 		`UPDATE messages 

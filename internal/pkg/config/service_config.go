@@ -7,9 +7,9 @@ type ServiceConfig struct {
 }
 
 type DBConfig struct {
-	Host     string `env:"GATEWAY_SERVICE_DB_HOST"`
-	Port     string `env:"GATEWAY_SERVICE_DB_PORT"`
-	Database string `env:"GATEWAY_SERVICE_DB_NAME"`
-	Username string `env:"GATEWAY_SERVICE_DB_USER"`
-	Password string `env:"GATEWAY_SERVICE_DB_PASSWORD"`
+	Host     string `env:"SERVICE_DB_HOST"`
+	Port     string `env:"SERVICE_DB_PORT"`
+	Database string `env:"SERVICE_DB_NAME"`
+	Username string `env:"SERVICE_DB_USER"`
+	Password string `env:"SERVICE_DB_PASSWORD"`
 }

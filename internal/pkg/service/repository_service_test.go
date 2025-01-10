@@ -1,116 +1,79 @@
 package service
 
 import (
-	"database/sql"
-	"errors"
-	"github.com/shopspring/decimal"
+	"github.com/DATA-DOG/go-sqlmock"
+	"github.com/dinowar/maker-checker/internal/pkg/domain/model"
+	"github.com/stretchr/testify/assert"
 	"testing"
 	"time"
-
-	"github.com/DATA-DOG/go-sqlmock"
-	"github.com/dinowar/gateway-service/internal/pkg/domain/model"
-	"github.com/stretchr/testify/assert"
 )
 
-func TestSaveTransaction_Success(t *testing.T) {
-	db, mock, mockErr := sqlmock.New()
-	assert.NoError(t, mockErr)
+func TestSaveMessage(t *testing.T) {
+	db, mock, _ := sqlmock.New()
 	defer db.Close()
 
 	rep := NewRepositoryService(db)
 
-	txn := &model.Transaction{
-		ReferenceId: "ref123",
-		AccountId:   "ACC123",
-		Amount:      decimal.NewFromFloat(100.50),
-		Currency:    "USD",
+	msg := &model.Message{
+		Id:          "123",
+		SenderId:    "sender1",
+		RecipientId: "recipient1",
+		Content:     "Hello, world!",
 		Status:      model.StatusPending,
-		Operation:   model.Deposit,
-		GatewayId:   "rest_gateway",
-	}
-
-	mock.ExpectExec(`INSERT INTO transactions`).
-		WithArgs(txn.ReferenceId, txn.AccountId, txn.Amount, txn.Currency, txn.Status, txn.Operation, txn.GatewayId).
-		WillReturnResult(sqlmock.NewResult(1, 1))
-
-	saveErr := rep.SaveMessage(txn)
-	assert.NoError(t, saveErr)
-
-	assert.NoError(t, mock.ExpectationsWereMet())
-}
-
-func TestSaveTransaction_Failure(t *testing.T) {
-	db, mock, mockErr := sqlmock.New()
-	assert.NoError(t, mockErr)
-	defer db.Close()
-
-	rep := NewRepositoryService(db)
-	txn := &model.Transaction{
-		ReferenceId: "ref123",
-		AccountId:   "ACC123",
-		Amount:      decimal.NewFromFloat(100.50),
-		Currency:    "USD",
-		Status:      model.StatusPending,
-		Operation:   model.Deposit,
-		GatewayId:   "rest_gateway",
-	}
-
-	mock.ExpectExec(`INSERT INTO transactions`).
-		WithArgs(txn.ReferenceId, txn.AccountId, txn.Amount, txn.Currency, txn.Status, txn.Operation, txn.GatewayId).
-		WillReturnError(errors.New("failed to insert transaction"))
-
-	saveErr := rep.SaveMessage(txn)
-	assert.Error(t, saveErr)
-
-	assert.NoError(t, mock.ExpectationsWereMet())
-}
-
-func TestGetTransaction_Success(t *testing.T) {
-	db, mock, err := sqlmock.New()
-	assert.NoError(t, err)
-	defer db.Close()
-
-	rep := NewRepositoryService(db)
-
-	txn := &model.Transaction{
-		Id:          "1",
-		ReferenceId: "ref123",
-		AccountId:   "ACC123",
-		Amount:      decimal.NewFromFloat(100.50),
-		Currency:    "USD",
-		Status:      model.StatusSuccess,
-		Operation:   model.Deposit,
-		Message:     "Transaction successful",
-		GatewayId:   "rest_gateway",
 		Ts:          time.Now(),
 	}
 
-	rows := sqlmock.NewRows([]string{"id", "reference_id", "account_id", "amount", "currency", "status", "operation", "message", "gateway_id", "ts"}).
-		AddRow(txn.Id, txn.ReferenceId, txn.AccountId, txn.Amount, txn.Currency, txn.Status, txn.Operation, txn.Message, txn.GatewayId, txn.Ts)
+	mock.ExpectExec(`INSERT INTO messages`).
+		WithArgs(msg.Id, msg.SenderId, msg.RecipientId, msg.Content, msg.Status, msg.Ts).
+		WillReturnResult(sqlmock.NewResult(1, 1))
 
-	mock.ExpectQuery(`SELECT (.+) FROM transactions WHERE reference_id = ?`).
-		WithArgs("ref123").
-		WillReturnRows(rows)
-
-	result, err := rep.GetTransaction("ref123")
+	err := rep.SaveMessage(msg)
 	assert.NoError(t, err)
-	assert.Equal(t, txn.ReferenceId, result.ReferenceId)
-	assert.Equal(t, txn.Status, result.Status)
-	assert.NoError(t, mock.ExpectationsWereMet())
+	mock.ExpectationsWereMet()
 }
 
-func TestGetTransaction_NotFound(t *testing.T) {
-	db, mock, mockErr := sqlmock.New()
-	assert.NoError(t, mockErr)
+func TestGetMessageById(t *testing.T) {
+	db, mock, _ := sqlmock.New()
 	defer db.Close()
 
 	rep := NewRepositoryService(db)
 
-	mock.ExpectQuery(`SELECT (.+) FROM transactions WHERE reference_id = ?`).
-		WithArgs("ref123").
-		WillReturnError(sql.ErrNoRows)
+	msg := &model.Message{
+		Id:          "123",
+		SenderId:    "sender1",
+		RecipientId: "recipient1",
+		Content:     "Hello, world!",
+		Status:      model.StatusPending,
+		Ts:          time.Date(2025, time.January, 10, 14, 49, 58, 129680000, time.Local),
+	}
 
-	_, txErr := rep.GetTransaction("ref123")
-	assert.NoError(t, txErr)
-	assert.NoError(t, mock.ExpectationsWereMet())
+	rows := sqlmock.NewRows([]string{"id", "sender_id", "recipient_id", "content", "status", "ts"}).
+		AddRow(msg.Id, msg.SenderId, msg.RecipientId, msg.Content, msg.Status, msg.Ts)
+
+	mock.ExpectQuery(`SELECT id, sender_id, recipient_id, content, status, ts FROM messages WHERE id = \$1`).
+		WithArgs(msg.Id).
+		WillReturnRows(rows)
+
+	result, err := rep.GetMessageById("123")
+	assert.NoError(t, err)
+	assert.Equal(t, msg, result)
+	mock.ExpectationsWereMet()
+}
+
+func TestUpdateMessage(t *testing.T) {
+	db, mock, _ := sqlmock.New()
+	defer db.Close()
+
+	rep := NewRepositoryService(db)
+
+	messageId := "123"
+	status := model.StatusApproved
+
+	mock.ExpectExec(`UPDATE messages SET status = \$1 WHERE id = \$2`).
+		WithArgs(status, messageId).
+		WillReturnResult(sqlmock.NewResult(0, 1))
+
+	err := rep.UpdateMessage(messageId, status)
+	assert.NoError(t, err)
+	mock.ExpectationsWereMet()
 }

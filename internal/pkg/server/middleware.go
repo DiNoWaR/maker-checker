@@ -7,6 +7,7 @@ import (
 	"strings"
 )
 
+// For the simplicity we gave predefined token
 var defaultAdminToken = os.Getenv("DEFAULT_MODERATOR_TOKEN")
 
 func AuthMiddleware() gin.HandlerFunc {

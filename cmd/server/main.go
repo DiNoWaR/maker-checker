@@ -34,14 +34,18 @@ func main() {
 
 	repService := service.NewRepositoryService(db)
 	logService := service.NewLogService(logger)
-	appServer := server.NewAppServer(repService, logService, serviceConfig)
+	senderService := service.NewSenderService(logger)
+	appServer := server.NewAppServer(repService, senderService, logService, serviceConfig)
 
 	router := gin.Default()
+
+	// Users route
 	router.POST("/messages", appServer.CreateMessage)
 
+	// Secured routes for moderators
 	protected := router.Group("/messages", server.AuthMiddleware())
 	{
-		router.GET("/messages", appServer.GetMessages)
+		protected.GET("/", appServer.GetMessages)
 		protected.PUT("/:id/approve", appServer.ApproveMessage)
 		protected.PUT("/:id/reject", appServer.RejectMessage)
 	}

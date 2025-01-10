@@ -18,13 +18,15 @@ type CreateMessageRequest struct {
 
 type Server struct {
 	rep    *service.RepositoryService
+	sender *service.SenderService
 	logger *service.LogService
 	config *config.ServiceConfig
 }
 
-func NewAppServer(rep *service.RepositoryService, logger *service.LogService, config *config.ServiceConfig) *Server {
+func NewAppServer(rep *service.RepositoryService, senderService *service.SenderService, logger *service.LogService, config *config.ServiceConfig) *Server {
 	return &Server{
 		rep:    rep,
+		sender: senderService,
 		logger: logger,
 		config: config,
 	}
@@ -52,6 +54,7 @@ func (server *Server) CreateMessage(context *gin.Context) {
 	if dbErr != nil {
 		server.logger.LogError("dbErr", dbErr)
 		context.JSON(http.StatusInternalServerError, gin.H{})
+		return
 	}
 
 	context.JSON(http.StatusOK, gin.H{
@@ -69,6 +72,7 @@ func (server *Server) GetMessages(context *gin.Context) {
 	if dbErr != nil {
 		server.logger.LogError("dbErr", dbErr)
 		context.JSON(http.StatusInternalServerError, gin.H{})
+		return
 	}
 
 	context.JSON(http.StatusOK, gin.H{
@@ -77,17 +81,68 @@ func (server *Server) GetMessages(context *gin.Context) {
 }
 
 func (server *Server) ApproveMessage(context *gin.Context) {
-	id := context.Param("id")
+	messageId := context.Param("id")
+
+	message, messageErr := server.rep.GetMessageById(messageId)
+	if messageErr != nil {
+		server.logger.LogError("dbErr", messageErr)
+		context.JSON(http.StatusInternalServerError, gin.H{})
+		return
+	}
+
+	if message.Status != model.StatusPending {
+		context.JSON(http.StatusConflict, gin.H{
+			"error":   "Message has already been processed",
+			"message": "The message is not in a pending state and cannot be updated.",
+		})
+		return
+	}
+
+	dbErr := server.rep.UpdateMessage(messageId, model.StatusApproved)
+	if dbErr != nil {
+		server.logger.LogError("dbErr", dbErr)
+		context.JSON(http.StatusInternalServerError, gin.H{})
+		return
+	}
+
+	// Sending approved message to recipient
+	server.sender.SendMessage(*message)
+
 	context.JSON(http.StatusOK, gin.H{
-		"message": "Message approved",
-		"id":      id,
+		"messageStatus": "Message approved",
+		"messageId":     messageId,
+		"content":       message.Content,
 	})
 }
 
 func (server *Server) RejectMessage(context *gin.Context) {
-	id := context.Param("id")
+	messageId := context.Param("id")
+
+	message, messageErr := server.rep.GetMessageById(messageId)
+	if messageErr != nil {
+		server.logger.LogError("dbErr", messageErr)
+		context.JSON(http.StatusInternalServerError, gin.H{})
+		return
+	}
+
+	if message.Status != model.StatusPending {
+		context.JSON(http.StatusConflict, gin.H{
+			"error":   "Message has already been processed",
+			"message": "The message is not in a pending state and cannot be updated.",
+		})
+		return
+	}
+
+	dbErr := server.rep.UpdateMessage(messageId, model.StatusRejected)
+	if dbErr != nil {
+		server.logger.LogError("dbErr", dbErr)
+		context.JSON(http.StatusInternalServerError, gin.H{})
+		return
+	}
+
 	context.JSON(http.StatusOK, gin.H{
-		"message": "Message rejected",
-		"id":      id,
+		"messageStatus": "Message rejected",
+		"messageId":     messageId,
+		"content":       message.Content,
 	})
 }

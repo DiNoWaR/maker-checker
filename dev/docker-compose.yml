@@ -1,0 +1,33 @@
+services:
+  postgres:
+    container_name: service-postgres
+    image: postgres:latest
+    environment:
+      - POSTGRES_USER=admin
+      - POSTGRES_PASSWORD=password
+      - POSTGRES_DB=default
+    volumes:
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+    ports:
+      - "5432:5432"
+    networks:
+      - app-network
+    restart: always
+
+  service:
+    container_name: service
+    build:
+      context: ../
+    ports:
+      - "9090:9090"
+    env_file:
+      - env.txt
+    depends_on:
+      - postgres
+    networks:
+      - app-network
+    restart: always
+
+networks:
+  app-network:
+    driver: bridge
