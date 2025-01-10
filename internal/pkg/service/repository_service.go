@@ -3,7 +3,6 @@ package service
 import (
 	"database/sql"
 	. "github.com/dinowar/maker-checker/internal/pkg/domain/model"
-	"github.com/google/uuid"
 )
 
 type RepositoryService struct {
@@ -29,7 +28,7 @@ func (rep *RepositoryService) SaveMessage(msg *Message) error {
 	return saveErr
 }
 
-func (rep *RepositoryService) UpdateMessage(messageId uuid.UUID, status MessageStatus) error {
+func (rep *RepositoryService) UpdateMessage(messageId string, status MessageStatus) error {
 	_, dbErr := rep.db.Exec(
 		`UPDATE messages 
 		 SET status = $1

@@ -16,8 +16,8 @@ type Message struct {
 type MessageStatus string
 
 const (
-	StatusPending MessageStatus = "PENDING"
-	StatusSuccess MessageStatus = "SUCCESS"
-	StatusFailed  MessageStatus = "FAILED"
-	StatusAll     MessageStatus = "ALL"
+	StatusPending  MessageStatus = "PENDING"
+	StatusApproved MessageStatus = "APPROVED"
+	StatusRejected MessageStatus = "REJECTED"
+	StatusAll      MessageStatus = "ALL"
 )
