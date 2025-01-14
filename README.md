@@ -20,8 +20,6 @@ After launched you can make all requests
 
 #### Create message
 
-Send a deposit request to the Service:
-
 ```
     curl -X POST http://localhost:9090/messages \
      -H "Content-Type: application/json" \
